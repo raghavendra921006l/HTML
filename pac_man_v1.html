@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Glass Pac-Man</title>
+  <style>
+    :root {
+      --bg1: #0a0f24;
+      --bg2: #151d3b;
+      --glass: rgba(255, 255, 255, 0.08);
+      --border: rgba(255, 255, 255, 0.28);
+      --text: #f7fbff;
+      --accent: #36d1dc;
+      --accent2: #5b86e5;
+      --danger: #ff6b6b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at 10% 10%, #233b84, transparent 30%),
+                  radial-gradient(circle at 90% 90%, #1f8f95, transparent 30%),
+                  linear-gradient(135deg, var(--bg1), var(--bg2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+
+    .shell {
+      width: min(96vw, 760px);
+      border-radius: 22px;
+      padding: 16px;
+      backdrop-filter: blur(14px) saturate(150%);
+      -webkit-backdrop-filter: blur(14px) saturate(150%);
+      background: var(--glass);
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+
+    .topbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .title {
+      font-weight: 700;
+      letter-spacing: .5px;
+      background: linear-gradient(90deg, #fffb7d, #88ffef);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      font-size: clamp(1rem, 2vw, 1.25rem);
+    }
+
+    .stats {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.9rem;
+    }
+
+    .board-wrap {
+      position: relative;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.2);
+      background: rgba(0,0,0,0.2);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: linear-gradient(180deg, rgba(3,4,30,.95), rgba(10,13,45,.9));
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(6, 8, 20, .55);
+      backdrop-filter: blur(4px);
+      text-align: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: .2s;
+    }
+
+    .overlay.show { opacity: 1; pointer-events: auto; }
+
+    .card {
+      background: rgba(255,255,255,.09);
+      border: 1px solid rgba(255,255,255,.3);
+      border-radius: 16px;
+      padding: 18px;
+      max-width: 420px;
+    }
+
+    button {
+      margin-top: 10px;
+      border: none;
+      color: #fff;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(53,181,226,.4);
+    }
+
+    .controls {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(56px, 70px));
+      gap: 8px;
+      justify-content: center;
+      user-select: none;
+    }
+
+    .pad {
+      aspect-ratio: 1;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.25);
+      background: rgba(255,255,255,.1);
+      display: grid;
+      place-items: center;
+      font-size: 1.25rem;
+      touch-action: none;
+    }
+
+    .pad.blank { opacity: 0; pointer-events: none; }
+
+    .hint {
+      text-align: center;
+      opacity: .85;
+      margin-top: 8px;
+      font-size: .9rem;
+    }
+
+    @media (max-width: 560px) {
+      .shell { padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <div class="title">👻 Glass Pac-Man</div>
+      <div class="stats">
+        <div class="chip">Score: <span id="score">0</span></div>
+        <div class="chip">Lives: <span id="lives">3</span></div>
+        <div class="chip">Best: <span id="best">0</span></div>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <canvas id="game" width="560" height="620"></canvas>
+      <div id="overlay" class="overlay show">
+        <div class="card">
+          <h2 id="overlayTitle">Ready?</h2>
+          <p id="overlayText">Use keyboard arrows / WASD or touch buttons to move and eat all dots.</p>
+          <button id="startBtn">Start Game</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="pad blank"></div>
+      <div class="pad" data-dir="up">▲</div>
+      <div class="pad blank"></div>
+      <div class="pad" data-dir="left">◀</div>
+      <div class="pad" data-dir="down">▼</div>
+      <div class="pad" data-dir="right">▶</div>
+    </div>
+    <div class="hint">Keyboard: Arrow Keys / WASD · Touch: D-pad buttons</div>
+  </div>
+
+  <script>
+    const layout = [
+      "####################",
+      "#........##........#",
+      "#.###.##.##.##.###.#",
+      "#o###.##.##.##.###o#",
+      "#..................#",
+      "#.###.#.####.#.###.#",
+      "#.....#..##..#.....#",
+      "#####.###  ###.#####",
+      "    #.#GGGG#.#    ",
+      "#####.# #### #.#####",
+      "#........P.........#",
+      "#.###.##.##.##.###.#",
+      "#o..#............#o#",
+      "###.#.#.####.#.#.###",
+      "#.....#..##..#.....#",
+      "#.#######..#######.#",
+      "#..................#",
+      "####################"
+    ];
+
+    const CELL = 28;
+    const rows = layout.length;
+    const cols = Math.max(...layout.map(r => r.length));
+
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    canvas.width = cols * CELL;
+    canvas.height = rows * CELL;
+
+    const scoreEl = document.getElementById('score');
+    const livesEl = document.getElementById('lives');
+    const bestEl = document.getElementById('best');
+    const overlay = document.getElementById('overlay');
+    const overlayTitle = document.getElementById('overlayTitle');
+    const overlayText = document.getElementById('overlayText');
+    const startBtn = document.getElementById('startBtn');
+
+    let map = [];
+    let dots = 0;
+    let score = 0;
+    let lives = 3;
+    let running = false;
+    let tick = 0;
+    let lastFrame = 0;
+    let moveAccumulator = 0;
+    let powered = 0;
+    const bestKey = 'glass-pacman-best';
+    bestEl.textContent = localStorage.getItem(bestKey) || 0;
+
+    const dirs = {
+      left: {x: -1, y: 0},
+      right: {x: 1, y: 0},
+      up: {x: 0, y: -1},
+      down: {x: 0, y: 1}
+    };
+
+    const pacman = {
+      x: 1,
+      y: 1,
+      dir: 'left',
+      next: 'left',
+      mouth: 0
+    };
+
+    const ghostColors = ['#ff4f81', '#50e3c2', '#ff9f43', '#9b6bff'];
+    let ghosts = [];
+
+    function resetMap() {
+      map = layout.map(row => row.padEnd(cols, ' ').split(''));
+      dots = 0;
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          if (map[y][x] === '.') dots++;
+          if (map[y][x] === 'o') dots++;
+          if (map[y][x] === 'P') {
+            pacman.x = x;
+            pacman.y = y;
+            map[y][x] = ' ';
+          }
+        }
+      }
+
+      ghosts = [];
+      let gi = 0;
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          if (map[y][x] === 'G') {
+            ghosts.push({ x, y, startX: x, startY: y, dir: ['left','right','up','down'][gi % 4], dead: false, color: ghostColors[gi % ghostColors.length] });
+            map[y][x] = ' ';
+            gi++;
+          }
+        }
+      }
+    }
+
+    function canMove(x, y) {
+      if (y < 0 || y >= rows) return false;
+      if (x < 0) x = cols - 1;
+      if (x >= cols) x = 0;
+      return map[y][x] !== '#';
+    }
+
+    function moveEntity(entity, dir) {
+      const d = dirs[dir];
+      let nx = entity.x + d.x;
+      let ny = entity.y + d.y;
+      if (nx < 0) nx = cols - 1;
+      if (nx >= cols) nx = 0;
+      if (!canMove(nx, ny)) return false;
+      entity.x = nx;
+      entity.y = ny;
+      entity.dir = dir;
+      return true;
+    }
+
+    function updatePacman() {
+      if (canMoveWrap(pacman, pacman.next)) moveEntity(pacman, pacman.next);
+      else moveEntity(pacman, pacman.dir);
+
+      const cell = map[pacman.y][pacman.x];
+      if (cell === '.') {
+        map[pacman.y][pacman.x] = ' ';
+        score += 10;
+        dots--;
+      } else if (cell === 'o') {
+        map[pacman.y][pacman.x] = ' ';
+        score += 50;
+        powered = 120;
+        dots--;
+      }
+      scoreEl.textContent = score;
+    }
+
+    function canMoveWrap(entity, dir) {
+      const d = dirs[dir];
+      let nx = entity.x + d.x;
+      let ny = entity.y + d.y;
+      if (nx < 0) nx = cols - 1;
+      if (nx >= cols) nx = 0;
+      return canMove(nx, ny);
+    }
+
+    function updateGhosts() {
+      ghosts.forEach(g => {
+        const options = Object.keys(dirs).filter(d => canMoveWrap(g, d));
+        if (!options.includes(g.dir) || Math.random() < 0.25) {
+          const opposite = {left:'right', right:'left', up:'down', down:'up'};
+          const picks = options.filter(d => d !== opposite[g.dir]);
+          g.dir = (picks[Math.floor(Math.random() * picks.length)] || options[0] || g.dir);
+        }
+        moveEntity(g, g.dir);
+      });
+    }
+
+    function checkCollisions() {
+      ghosts.forEach(g => {
+        if (g.x === pacman.x && g.y === pacman.y) {
+          if (powered > 0) {
+            g.x = g.startX;
+            g.y = g.startY;
+            score += 200;
+            scoreEl.textContent = score;
+          } else {
+            lives--;
+            livesEl.textContent = lives;
+            if (lives <= 0) {
+              endGame(false);
+            } else {
+              pacman.x = 1; pacman.y = 1; pacman.dir = 'left'; pacman.next = 'left';
+            }
+          }
+        }
+      });
+
+      if (dots <= 0) endGame(true);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const cell = map[y][x];
+          const px = x * CELL;
+          const py = y * CELL;
+
+          if (cell === '#') {
+            ctx.fillStyle = 'rgba(92, 140, 255, .22)';
+            ctx.fillRect(px, py, CELL, CELL);
+            ctx.strokeStyle = 'rgba(129, 186, 255, .55)';
+            ctx.lineWidth = 1.2;
+            ctx.strokeRect(px + .5, py + .5, CELL - 1, CELL - 1);
+          } else if (cell === '.') {
+            ctx.fillStyle = '#dff8ff';
+            ctx.beginPath();
+            ctx.arc(px + CELL / 2, py + CELL / 2, 3, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (cell === 'o') {
+            ctx.fillStyle = '#ffe66d';
+            ctx.beginPath();
+            ctx.arc(px + CELL / 2, py + CELL / 2, 6, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+
+      const pX = pacman.x * CELL + CELL / 2;
+      const pY = pacman.y * CELL + CELL / 2;
+      const r = CELL * 0.42;
+      let angleBase = {right: 0, left: Math.PI, up: -Math.PI / 2, down: Math.PI / 2}[pacman.dir];
+      const mouth = (Math.sin(pacman.mouth) + 1) * 0.22;
+      ctx.fillStyle = '#ffe14d';
+      ctx.beginPath();
+      ctx.moveTo(pX, pY);
+      ctx.arc(pX, pY, r, angleBase + mouth, angleBase + Math.PI * 2 - mouth);
+      ctx.closePath();
+      ctx.fill();
+
+      ghosts.forEach(g => {
+        const gx = g.x * CELL;
+        const gy = g.y * CELL;
+        ctx.fillStyle = powered > 0 ? '#66a6ff' : g.color;
+        ctx.beginPath();
+        ctx.roundRect(gx + 3, gy + 4, CELL - 6, CELL - 6, 8);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(gx + 10, gy + 14, 4, 0, Math.PI * 2);
+        ctx.arc(gx + 18, gy + 14, 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    const PACMAN_STEP_MS = 170;
+    const GHOST_STEP_MS = 210;
+
+    function loop(ts = 0) {
+      if (!running) return;
+      const dt = Math.min(32, ts - lastFrame || 16);
+      lastFrame = ts;
+      moveAccumulator += dt;
+
+      while (moveAccumulator >= PACMAN_STEP_MS) {
+        updatePacman();
+        checkCollisions();
+        moveAccumulator -= PACMAN_STEP_MS;
+      }
+
+      tick += dt;
+      if (tick >= GHOST_STEP_MS) {
+        tick = 0;
+        updateGhosts();
+        checkCollisions();
+      }
+      if (powered > 0) powered--;
+      pacman.mouth += 0.2;
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    function endGame(won) {
+      running = false;
+      const best = Math.max(Number(localStorage.getItem(bestKey) || 0), score);
+      localStorage.setItem(bestKey, best);
+      bestEl.textContent = best;
+
+      overlay.classList.add('show');
+      overlayTitle.textContent = won ? 'You Win! 🏆' : 'Game Over';
+      overlayText.textContent = won
+        ? `Great run! Final score: ${score}. Tap restart for another round.`
+        : `Final score: ${score}. Avoid ghosts and grab power orbs!`;
+      startBtn.textContent = 'Restart';
+    }
+
+    function setDirection(dir) {
+      pacman.next = dir;
+      if (!running && overlay.classList.contains('show')) startGame();
+    }
+
+    function startGame() {
+      score = 0;
+      lives = 3;
+      powered = 0;
+      tick = 0;
+      lastFrame = 0;
+      moveAccumulator = 0;
+      scoreEl.textContent = score;
+      livesEl.textContent = lives;
+      resetMap();
+      overlay.classList.remove('show');
+      running = true;
+      requestAnimationFrame(loop);
+    }
+
+    startBtn.addEventListener('click', startGame);
+
+    document.addEventListener('keydown', (e) => {
+      const key = e.key.toLowerCase();
+      const map = {
+        arrowleft: 'left', a: 'left',
+        arrowright: 'right', d: 'right',
+        arrowup: 'up', w: 'up',
+        arrowdown: 'down', s: 'down'
+      };
+      if (map[key]) {
+        e.preventDefault();
+        setDirection(map[key]);
+      }
+    });
+
+    document.querySelectorAll('.pad[data-dir]').forEach(btn => {
+      const dir = btn.dataset.dir;
+      const activate = (e) => {
+        e.preventDefault();
+        btn.style.transform = 'scale(0.95)';
+        setDirection(dir);
+      };
+      const release = () => btn.style.transform = '';
+      btn.addEventListener('touchstart', activate, { passive: false });
+      btn.addEventListener('touchend', release);
+      btn.addEventListener('mousedown', activate);
+      btn.addEventListener('mouseup', release);
+      btn.addEventListener('mouseleave', release);
+    });
+
+    resetMap();
+    draw();
+  </script>
+</body>
+</html>

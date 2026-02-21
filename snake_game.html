@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake Game — Oracle Forms 12c</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --oracle-red: #c0392b;
+    --oracle-dark-red: #922b21;
+    --win-bg: #d4d0c8;
+    --win-border-light: #ffffff;
+    --win-border-dark: #808080;
+    --win-border-darker: #404040;
+    --title-bar: #000080;
+    --title-text: #ffffff;
+    --canvas-bg: #c0c0c0;
+    --field-bg: #ffffff;
+    --field-border: #7b7b7b;
+    --btn-face: #d4d0c8;
+    --btn-shadow: #808080;
+    --btn-highlight: #ffffff;
+    --text-dark: #000000;
+    --grid-bg: #1a1a2e;
+    --snake-head: #00ff41;
+    --snake-body: #00cc33;
+    --food-color: #ff4444;
+    --food-glow: #ff0000;
+    --grid-line: #0d0d1a;
+    --score-bg: #000814;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #008080;
+    background-image: 
+      repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0,0,0,0.03) 1px, rgba(0,0,0,0.03) 2px),
+      repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(0,0,0,0.03) 1px, rgba(0,0,0,0.03) 2px);
+    font-family: 'Share Tech Mono', monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  /* Oracle Forms Main Window */
+  .forms-window {
+    background: var(--win-bg);
+    border: 2px solid;
+    border-color: var(--win-border-light) var(--win-border-darker) var(--win-border-darker) var(--win-border-light);
+    box-shadow: 2px 2px 0 var(--win-border-darker), 4px 4px 8px rgba(0,0,0,0.4);
+    width: 680px;
+    user-select: none;
+  }
+
+  /* Title Bar */
+  .title-bar {
+    background: var(--title-bar);
+    color: var(--title-text);
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+
+  .title-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .title-icon {
+    width: 16px;
+    height: 16px;
+    background: var(--oracle-red);
+    border: 1px solid #ff6b6b;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+  }
+
+  .title-controls {
+    display: flex;
+    gap: 2px;
+  }
+
+  .title-btn {
+    width: 16px;
+    height: 14px;
+    background: var(--btn-face);
+    border: 1px solid;
+    border-color: var(--btn-highlight) var(--btn-shadow) var(--btn-shadow) var(--btn-highlight);
+    cursor: pointer;
+    font-size: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: #000;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* Menu Bar */
+  .menu-bar {
+    background: var(--win-bg);
+    border-bottom: 1px solid var(--win-border-dark);
+    padding: 2px 4px;
+    display: flex;
+    gap: 0;
+    font-size: 12px;
+  }
+
+  .menu-item {
+    padding: 2px 8px;
+    cursor: pointer;
+    color: var(--text-dark);
+  }
+  .menu-item:hover { background: var(--title-bar); color: white; }
+  .menu-item span { text-decoration: underline; }
+
+  /* Toolbar */
+  .toolbar {
+    background: var(--win-bg);
+    border-bottom: 2px solid;
+    border-color: var(--win-border-dark) var(--win-border-light) var(--win-border-light) var(--win-border-dark);
+    padding: 3px 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .toolbar-sep {
+    width: 1px;
+    height: 22px;
+    background: var(--win-border-dark);
+    border-right: 1px solid var(--win-border-light);
+    margin: 0 3px;
+  }
+
+  .tb-btn {
+    width: 24px;
+    height: 22px;
+    background: var(--btn-face);
+    border: 1px solid;
+    border-color: var(--btn-highlight) var(--btn-shadow) var(--btn-shadow) var(--btn-highlight);
+    cursor: pointer;
+    font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tb-btn:active {
+    border-color: var(--btn-shadow) var(--btn-highlight) var(--btn-highlight) var(--btn-shadow);
+  }
+
+  /* Main Content Area */
+  .forms-content {
+    padding: 12px;
+    background: var(--canvas-bg);
+    border: 2px inset var(--win-border-dark);
+    margin: 6px;
+  }
+
+  /* Form Canvas Label */
+  .canvas-label {
+    font-size: 11px;
+    color: #444;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* Oracle Forms Frame/GroupBox */
+  .forms-frame {
+    border: 2px groove var(--win-border-dark);
+    padding: 10px;
+    margin-bottom: 10px;
+    background: var(--win-bg);
+    position: relative;
+  }
+
+  .frame-label {
+    position: absolute;
+    top: -9px;
+    left: 8px;
+    background: var(--win-bg);
+    padding: 0 4px;
+    font-size: 11px;
+    color: #000080;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+  }
+
+  /* Game Area */
+  .game-area {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  /* Grid Canvas */
+  .grid-container {
+    border: 3px inset #606060;
+    background: var(--grid-bg);
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  #gameCanvas {
+    display: block;
+    image-rendering: pixelated;
+  }
+
+  /* Side Panel */
+  .side-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Display Items (Oracle Forms style) */
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .field-label {
+    font-size: 11px;
+    color: #000080;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+  }
+
+  .display-item {
+    background: var(--score-bg);
+    border: 2px inset #606060;
+    color: #00ff41;
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    padding: 3px 6px;
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+    letter-spacing: 1px;
+    text-shadow: 0 0 8px #00ff41;
+  }
+
+  .status-item {
+    background: var(--score-bg);
+    border: 2px inset #606060;
+    color: #ffff00;
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    padding: 3px 6px;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    letter-spacing: 1px;
+    text-shadow: 0 0 6px #ffff00;
+    word-break: break-word;
+  }
+
+  /* Oracle-style Push Buttons */
+  .forms-btn {
+    background: var(--btn-face);
+    border: 2px solid;
+    border-color: var(--btn-highlight) var(--btn-shadow) var(--btn-shadow) var(--btn-highlight);
+    padding: 4px 10px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dark);
+    cursor: pointer;
+    text-align: center;
+    width: 100%;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+    position: relative;
+  }
+
+  .forms-btn:active {
+    border-color: var(--btn-shadow) var(--btn-highlight) var(--btn-highlight) var(--btn-shadow);
+    padding: 5px 9px 3px 11px;
+  }
+
+  .forms-btn:hover {
+    background: #e0dcd4;
+  }
+
+  .forms-btn.primary {
+    color: #000080;
+    font-weight: bold;
+  }
+
+  .forms-btn.danger {
+    color: var(--oracle-red);
+    font-weight: bold;
+  }
+
+  /* Direction controls */
+  .dir-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 2px;
+    margin-top: 4px;
+  }
+
+  .dir-btn {
+    background: var(--btn-face);
+    border: 2px solid;
+    border-color: var(--btn-highlight) var(--btn-shadow) var(--btn-shadow) var(--btn-highlight);
+    padding: 5px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .dir-btn:active {
+    border-color: var(--btn-shadow) var(--btn-highlight) var(--btn-highlight) var(--btn-shadow);
+  }
+  .dir-up    { grid-column: 2; grid-row: 1; }
+  .dir-left  { grid-column: 1; grid-row: 2; }
+  .dir-down  { grid-column: 2; grid-row: 2; }
+  .dir-right { grid-column: 3; grid-row: 2; }
+
+  /* Status Bar */
+  .status-bar {
+    background: var(--win-bg);
+    border-top: 2px solid;
+    border-color: var(--win-border-dark) var(--win-border-light) var(--win-border-light) var(--win-border-dark);
+    padding: 2px 8px;
+    display: flex;
+    gap: 0;
+    font-size: 11px;
+  }
+
+  .status-panel {
+    padding: 1px 8px;
+    border: 1px inset #aaa;
+    min-width: 120px;
+    color: #000;
+  }
+
+  .status-panel + .status-panel { margin-left: 4px; }
+
+  /* Report Window Popup */
+  .report-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .report-overlay.show { display: flex; }
+
+  .report-window {
+    background: var(--win-bg);
+    border: 2px solid;
+    border-color: var(--win-border-light) var(--win-border-darker) var(--win-border-darker) var(--win-border-light);
+    box-shadow: 4px 4px 12px rgba(0,0,0,0.6);
+    width: 480px;
+  }
+
+  .report-title {
+    background: var(--title-bar);
+    color: white;
+    padding: 4px 8px;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .report-body {
+    padding: 12px;
+    background: white;
+    margin: 8px;
+    border: 2px inset #aaa;
+    max-height: 320px;
+    overflow-y: auto;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+  }
+
+  .report-header {
+    text-align: center;
+    border-bottom: 2px solid #000;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+  }
+
+  .report-header h2 {
+    font-size: 16px;
+    color: var(--oracle-red);
+    font-family: 'VT323', monospace;
+    letter-spacing: 2px;
+  }
+
+  .report-header p {
+    font-size: 10px;
+    color: #666;
+    margin-top: 2px;
+  }
+
+  .report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  .report-table th {
+    background: #000080;
+    color: white;
+    padding: 4px 8px;
+    text-align: left;
+    border: 1px solid #000040;
+  }
+
+  .report-table td {
+    padding: 3px 8px;
+    border: 1px solid #ccc;
+  }
+
+  .report-table tr:nth-child(even) td { background: #f0f0f8; }
+  .report-table tr:nth-child(odd) td { background: #ffffff; }
+  .report-table td:first-child { color: #000080; font-weight: bold; }
+  .report-table td.new-score { color: var(--oracle-red); font-weight: bold; }
+
+  .report-footer {
+    padding: 8px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  /* Oracle Forms splash / about */
+  .oracle-badge {
+    text-align: center;
+    font-size: 10px;
+    color: #666;
+    padding: 2px 0;
+    letter-spacing: 1px;
+  }
+
+  .blink { animation: blink 1s step-end infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 14px; }
+  ::-webkit-scrollbar-track { background: var(--win-bg); border: 1px inset #aaa; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--win-bg);
+    border: 2px solid;
+    border-color: var(--btn-highlight) var(--btn-shadow) var(--btn-shadow) var(--btn-highlight);
+  }
+</style>
+</head>
+<body>
+
+<!-- Main Oracle Forms Window -->
+<div class="forms-window">
+
+  <!-- Title Bar -->
+  <div class="title-bar">
+    <div class="title-bar-left">
+      <div class="title-icon">🐍</div>
+      <span>Oracle Forms 12c — SNAKE_GAME.fmb [Run Form]</span>
+    </div>
+    <div class="title-controls">
+      <div class="title-btn">_</div>
+      <div class="title-btn">□</div>
+      <div class="title-btn" onclick="document.body.style.display='none'" style="color:var(--oracle-red)">✕</div>
+    </div>
+  </div>
+
+  <!-- Menu Bar -->
+  <div class="menu-bar">
+    <div class="menu-item"><span>F</span>ile</div>
+    <div class="menu-item"><span>E</span>dit</div>
+    <div class="menu-item"><span>V</span>iew</div>
+    <div class="menu-item"><span>G</span>ame</div>
+    <div class="menu-item"><span>R</span>eports</div>
+    <div class="menu-item"><span>H</span>elp</div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="tb-btn" title="Save">💾</div>
+    <div class="tb-btn" title="Print">🖨</div>
+    <div class="toolbar-sep"></div>
+    <div class="tb-btn" title="Cut">✂</div>
+    <div class="tb-btn" title="Copy">📋</div>
+    <div class="tb-btn" title="Paste">📌</div>
+    <div class="toolbar-sep"></div>
+    <div class="tb-btn" title="Run Report" onclick="showReport()">📊</div>
+    <div class="toolbar-sep"></div>
+    <div style="font-size:11px;color:#444;margin-left:4px;">Block: GAME_BLOCK &nbsp;|&nbsp; Form: SNAKE_GAME</div>
+  </div>
+
+  <!-- Canvas Content -->
+  <div class="forms-content">
+    <div class="canvas-label">Canvas: GAME_CANVAS</div>
+
+    <div class="forms-frame">
+      <div class="frame-label">SNAKE GAME — GAME_BLOCK</div>
+
+      <div class="game-area">
+
+        <!-- Game Grid -->
+        <div class="grid-container">
+          <canvas id="gameCanvas" width="380" height="380"></canvas>
+        </div>
+
+        <!-- Side Panel -->
+        <div class="side-panel">
+
+          <div class="field-group">
+            <div class="field-label">SCORE_LABEL</div>
+            <div class="display-item" id="scoreDisplay">000</div>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">HIGH_SCORE_LABEL</div>
+            <div class="display-item" id="highScoreDisplay">000</div>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">LENGTH_LABEL</div>
+            <div class="display-item" id="lengthDisplay">003</div>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">STATUS_LABEL</div>
+            <div class="status-item" id="statusDisplay"><span class="blink">PRESS START</span></div>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">LEVEL_LABEL</div>
+            <div class="display-item" id="levelDisplay">1</div>
+          </div>
+
+          <button class="forms-btn primary" id="startBtn" onclick="startGame()">▶ START / RESTART</button>
+          <button class="forms-btn" onclick="togglePause()" id="pauseBtn">⏸ PAUSE</button>
+          <button class="forms-btn danger" onclick="showReport()">📊 HIGH SCORES (RPT)</button>
+
+          <!-- Direction Buttons -->
+          <div class="field-label" style="margin-top:4px;">DIRECTION_CONTROL</div>
+          <div class="dir-controls">
+            <button class="dir-btn dir-up"    onclick="setDir(0,-1)">▲</button>
+            <button class="dir-btn dir-left"  onclick="setDir(-1,0)">◀</button>
+            <button class="dir-btn dir-down"  onclick="setDir(0,1)">▼</button>
+            <button class="dir-btn dir-right" onclick="setDir(1,0)">▶</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="oracle-badge">Oracle Forms Runtime — Version 12.2.1.4.0 | Connected: ORCLPDB | User: SNAKE_USR</div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="status-panel" id="sbMode">Mode: Normal</div>
+    <div class="status-panel" id="sbRecord">Record: 1/1</div>
+    <div class="status-panel">Block: GAME_BLOCK</div>
+    <div class="status-panel" style="flex:1;">WHEN-TIMER-EXPIRED: SNAKE_TIMER</div>
+  </div>
+</div>
+
+<!-- Report Popup -->
+<div class="report-overlay" id="reportOverlay">
+  <div class="report-window">
+    <div class="report-title">
+      <span>📊 Oracle Reports 12c — SNAKE_SCORE_REPORT.rdf [Preview]</span>
+      <div class="title-controls">
+        <div class="title-btn" onclick="closeReport()" style="color:var(--oracle-red)">✕</div>
+      </div>
+    </div>
+    <div class="report-body">
+      <div class="report-header">
+        <h2>🐍 SNAKE GAME — TOP 10 HIGH SCORES</h2>
+        <p>Report Generated: <span id="reportDate"></span> | User: SNAKE_USR | DB: ORCLPDB</p>
+        <p>SELECT RANK() OVER (ORDER BY score DESC), player_name, score FROM snake_scores</p>
+      </div>
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th>RANK</th>
+            <th>PLAYER_NAME</th>
+            <th>SCORE</th>
+            <th>LENGTH</th>
+            <th>PLAYED_AT</th>
+          </tr>
+        </thead>
+        <tbody id="scoreTableBody"></tbody>
+      </table>
+    </div>
+    <div class="report-footer">
+      <button class="forms-btn" style="width:auto;padding:4px 16px;" onclick="closeReport()">Close</button>
+      <button class="forms-btn primary" style="width:auto;padding:4px 16px;">🖨 Print PDF</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// SNAKE GAME ENGINE
+// ============================================================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const GRID = 20;
+const CELL = canvas.width / GRID; // 19px per cell
+
+let snake = [], dir = {x:1,y:0}, nextDir = {x:1,y:0};
+let food = {x:0,y:0};
+let score = 0, highScore = 0, gameLoop = null;
+let running = false, paused = false, level = 1;
+let scores = [];
+
+function init() {
+  snake = [
+    {x:12,y:10},{x:11,y:10},{x:10,y:10}
+  ];
+  dir = {x:1,y:0}; nextDir = {x:1,y:0};
+  score = 0; level = 1;
+  placeFood();
+  updateUI();
+  drawGame();
+}
+
+function placeFood() {
+  let pos;
+  do {
+    pos = {
+      x: Math.floor(Math.random()*GRID),
+      y: Math.floor(Math.random()*GRID)
+    };
+  } while (snake.some(s=>s.x===pos.x&&s.y===pos.y));
+  food = pos;
+}
+
+function setDir(dx, dy) {
+  if (dx===1&&dir.x===-1) return;
+  if (dx===-1&&dir.x===1) return;
+  if (dy===1&&dir.y===-1) return;
+  if (dy===-1&&dir.y===1) return;
+  nextDir = {x:dx,y:dy};
+}
+
+function step() {
+  if (!running || paused) return;
+  dir = {...nextDir};
+
+  const head = {
+    x: (snake[0].x + dir.x + GRID) % GRID,
+    y: (snake[0].y + dir.y + GRID) % GRID
+  };
+
+  // Wall collision (no wrap — hard mode)
+  const wx = snake[0].x + dir.x;
+  const wy = snake[0].y + dir.y;
+  if (wx<0||wx>=GRID||wy<0||wy>=GRID) { endGame(); return; }
+  const newHead = {x:wx,y:wy};
+
+  // Self collision
+  if (snake.some(s=>s.x===newHead.x&&s.y===newHead.y)) { endGame(); return; }
+
+  snake.unshift(newHead);
+
+  if (newHead.x===food.x&&newHead.y===food.y) {
+    score += 10 * level;
+    if (score > highScore) highScore = score;
+    if (snake.length % 5 === 0) level = Math.min(level+1, 10);
+    placeFood();
+    updateSpeed();
+  } else {
+    snake.pop();
+  }
+
+  updateUI();
+  drawGame();
+}
+
+function drawGame() {
+  // Background
+  ctx.fillStyle = '#0d0d1a';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Grid lines
+  ctx.strokeStyle = '#111122';
+  ctx.lineWidth = 0.5;
+  for(let i=0;i<=GRID;i++){
+    ctx.beginPath();
+    ctx.moveTo(i*CELL,0); ctx.lineTo(i*CELL,canvas.height);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0,i*CELL); ctx.lineTo(canvas.width,i*CELL);
+    ctx.stroke();
+  }
+
+  // Food with glow
+  ctx.shadowColor='#ff0000';
+  ctx.shadowBlur=12;
+  ctx.fillStyle='#ff3333';
+  ctx.fillRect(food.x*CELL+1,food.y*CELL+1,CELL-2,CELL-2);
+  // Food shine
+  ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(255,180,180,0.5)';
+  ctx.fillRect(food.x*CELL+2,food.y*CELL+2,4,4);
+
+  // Snake
+  snake.forEach((seg,i)=>{
+    const isHead = i===0;
+    const t = i/snake.length;
+    const g = isHead ? 255 : Math.floor(200 - t*100);
+    ctx.shadowColor = isHead ? '#00ff41':'#00cc33';
+    ctx.shadowBlur = isHead ? 10 : 4;
+    ctx.fillStyle = isHead ? `rgb(0,${g},50)` : `rgb(0,${g},30)`;
+    ctx.fillRect(seg.x*CELL+1, seg.y*CELL+1, CELL-2, CELL-2);
+
+    if(isHead){
+      // Eyes
+      ctx.shadowBlur=0;
+      ctx.fillStyle='#000';
+      const eyeOff = dir.x!==0 ? 4 : 2;
+      ctx.fillRect(seg.x*CELL+3, seg.y*CELL+3, 3, 3);
+      ctx.fillRect(seg.x*CELL+CELL-6, seg.y*CELL+3, 3, 3);
+    }
+  });
+
+  ctx.shadowBlur=0;
+
+  // Overlay messages
+  if(!running){
+    ctx.fillStyle='rgba(0,0,0,0.7)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#00ff41';
+    ctx.font=`bold 24px 'VT323', monospace`;
+    ctx.textAlign='center';
+    ctx.shadowColor='#00ff41';
+    ctx.shadowBlur=20;
+    ctx.fillText('PRESS START', canvas.width/2, canvas.height/2-10);
+    ctx.shadowBlur=0;
+    ctx.font=`14px 'Share Tech Mono', monospace`;
+    ctx.fillStyle='#888';
+    ctx.fillText('Use Arrow Keys or Direction Buttons', canvas.width/2, canvas.height/2+20);
+  }
+
+  if(paused && running){
+    ctx.fillStyle='rgba(0,0,8,0.8)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#ffff00';
+    ctx.font=`bold 32px 'VT323', monospace`;
+    ctx.textAlign='center';
+    ctx.shadowColor='#ffff00';
+    ctx.shadowBlur=15;
+    ctx.fillText('PAUSED', canvas.width/2, canvas.height/2);
+    ctx.shadowBlur=0;
+  }
+}
+
+function updateUI() {
+  document.getElementById('scoreDisplay').textContent = String(score).padStart(3,'0');
+  document.getElementById('highScoreDisplay').textContent = String(highScore).padStart(3,'0');
+  document.getElementById('lengthDisplay').textContent = String(snake.length).padStart(3,'0');
+  document.getElementById('levelDisplay').textContent = level;
+  document.getElementById('sbRecord').textContent = `Record: ${snake.length}/∞`;
+}
+
+function updateSpeed() {
+  if(gameLoop) clearInterval(gameLoop);
+  const speed = Math.max(80, 220 - level*20);
+  gameLoop = setInterval(step, speed);
+  document.getElementById('sbMode').textContent = `Speed: ${Math.round(1000/speed)} fps`;
+}
+
+function startGame() {
+  if(gameLoop) clearInterval(gameLoop);
+  running = true; paused = false;
+  document.getElementById('statusDisplay').innerHTML = '▶ RUNNING...';
+  document.getElementById('sbMode').textContent = 'Mode: Running';
+  init();
+  updateSpeed();
+}
+
+function togglePause() {
+  if(!running) return;
+  paused = !paused;
+  document.getElementById('pauseBtn').textContent = paused ? '▶ RESUME' : '⏸ PAUSE';
+  document.getElementById('statusDisplay').innerHTML = paused ? '⏸ PAUSED' : '▶ RUNNING...';
+  document.getElementById('sbMode').textContent = paused ? 'Mode: Paused':'Mode: Running';
+  if(!paused) drawGame();
+}
+
+function endGame() {
+  running = false;
+  if(gameLoop) clearInterval(gameLoop);
+
+  scores.push({
+    name: 'USR_'+(Math.random()*100|0).toString().padStart(2,'0'),
+    score, length: snake.length,
+    date: new Date().toLocaleDateString('en-IN')
+  });
+  scores.sort((a,b)=>b.score-a.score);
+  if(scores.length>10) scores.length=10;
+
+  document.getElementById('statusDisplay').innerHTML =
+    `<span style="color:#ff4444">GAME OVER! Score: ${score}</span>`;
+  document.getElementById('sbMode').textContent = 'Mode: Game Over';
+
+  // Draw game over
+  setTimeout(()=>{
+    ctx.fillStyle='rgba(0,0,0,0.75)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.textAlign='center';
+    ctx.shadowColor='#ff0000';
+    ctx.shadowBlur=20;
+    ctx.fillStyle='#ff4444';
+    ctx.font=`bold 36px 'VT323', monospace`;
+    ctx.fillText('GAME OVER', canvas.width/2, canvas.height/2-20);
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#00ff41';
+    ctx.font=`20px 'VT323', monospace`;
+    ctx.fillText(`Score: ${score}   Length: ${snake.length}`, canvas.width/2, canvas.height/2+10);
+    ctx.fillStyle='#888';
+    ctx.font=`13px 'Share Tech Mono', monospace`;
+    ctx.fillText('Press START to play again', canvas.width/2, canvas.height/2+38);
+  }, 50);
+}
+
+// ============================================================
+// REPORT
+// ============================================================
+function showReport() {
+  document.getElementById('reportDate').textContent =
+    new Date().toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
+
+  const tbody = document.getElementById('scoreTableBody');
+  if(scores.length===0){
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#888;padding:12px;">
+      No records found. Play a game first!<br><small>SELECT * FROM snake_scores — 0 rows returned</small></td></tr>`;
+  } else {
+    tbody.innerHTML = scores.map((s,i)=>`
+      <tr>
+        <td>${i+1}</td>
+        <td class="${i===0?'new-score':''}">${s.name}</td>
+        <td class="${i===0?'new-score':''}">${s.score}</td>
+        <td>${s.length}</td>
+        <td>${s.date}</td>
+      </tr>`).join('');
+  }
+
+  document.getElementById('reportOverlay').classList.add('show');
+}
+
+function closeReport() {
+  document.getElementById('reportOverlay').classList.remove('show');
+}
+
+// ============================================================
+// KEYBOARD INPUT
+// ============================================================
+document.addEventListener('keydown', e=>{
+  const map = {
+    ArrowUp:   [0,-1], ArrowDown:  [0,1],
+    ArrowLeft: [-1,0], ArrowRight: [1,0],
+    w:[0,-1], s:[0,1], a:[-1,0], d:[1,0]
+  };
+  const d = map[e.key];
+  if(d){ e.preventDefault(); setDir(d[0],d[1]); }
+  if(e.key===' '){ e.preventDefault(); if(!running) startGame(); else togglePause(); }
+  if(e.key==='Enter' && !running) startGame();
+});
+
+// Initial draw
+init();
+</script>
+</body>
+</html>
